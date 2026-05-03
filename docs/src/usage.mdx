@@ -1,0 +1,51 @@
+# Usage
+
+Find help using the `singularity-dotfiles-manager` by running:
+
+```bash
+singularity-dotfiles-manager --help
+```
+
+## Recommended Dotfiles Structure
+
+```
+.
+├── 📂 apps/
+│   ├── 📄 arch.json            # App suite for Arch and Arch-like distros
+│   └── 📄 ...                  # App suites for other systems
+├── 📂 dependencies/            # Package dependencies for the dotfiles repo separated by newline
+│   ├── 📄 arch                 # Packages list for Arch and Arch-like distros
+│   └── 📄 ...                  # Packages lists for other distros
+├── 📂 dotfiles/                # The part of the repository that is symlinked to the home directory
+│   ├── 📂 .config/
+│   │   └── ...
+│   └── ...
+├── 📂 hooks/
+│   ├── 📜 arch.rhai            # Hooks script for Arch and Arch-like distros
+│   └── 📜 ...                  # Scripts for other distributions
+├── 📄 dotfiles-rolling.json    # Release config for rolling release on main
+├── 📄 dotfiles-stable.json     # Release config for stable release
+└── 📄 install.sh               # Optional bootstrap script
+```
+
+## Install Dotfiles
+
+The core command of Singularity. It pulls a dotfiles repository based on a configuration file.
+
+```bash
+singularity-dotfiles-manager install https://example.com/release-config.json
+```
+
+The dotfiles release config is a detailed description of your dotfiles repository.
+Find the JSON schema [here](./schema/dotfiles_release_config.json).
+
+Extend the installation workflow with Rhai hook scripts as described in [Hooks API](hooks_api.mdx).
+
+## App Suite
+
+Let the user install from a suite of applications defined in your profile.
+The app suite is defined in JSON. Find the JSON schema [here](./schema/apps.json).
+
+```bash
+singularity-dotfiles-manager apps
+```

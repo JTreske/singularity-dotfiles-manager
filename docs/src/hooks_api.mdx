@@ -1,0 +1,97 @@
+# Hooks API
+
+The application supports custom scripting via **Rhai**, a lightweight embedded scripting language for Rust. Hooks allow you to extend the application's behavior at specific points in the dotfiles installation workflow, using a simple, powerful syntax.
+
+## Requirements
+
+The application looks for a script file, named `<os-name>.rhai` (e.g., `arch.rhai`), within the configured hooks directory.
+
+### Script Structure
+
+Your script is processed in two stages:
+
+1.  **Initialization:** The script is compiled and executed from top to bottom. This is where you should define global variables (stored within the `Scope`).
+2.  **Hook Execution:** The application searches for specific functions within your script. These functions must take no parameters. If a function is defined, it is executed; if it is missing, the application simply continues.
+
+### Hook Functions
+
+The following functions can be implemented in your script:
+
+- `pre_backup()` - Executed before the backup of the active profile is taken.
+- `post_backup_pre_deps()` - Executed after the backup is created and before the dependencies of the new dotfiles repository are installed.
+- `post_deps_pre_install()` - Executed after the dependencies are installed and before the new dotfiles are installed into a profile.
+- `post_install_pre_restore()` - Executed after the installation of the dotfiles into the profile and before the selected restore items are copied from the backup to the new active profile (only in case of an update).
+- `post_restore_pre_link()` - Executed after the restore is complete and before the files from defined dotfiles directory in the active profile are linked to the users home directory.
+- `finalize()` - Executed after the linking is complete.
+
+---
+
+## What the Application Provides
+
+When your script runs, the application injects several constants and modules into the **Global Scope**. These are available everywhere in your script.
+
+### Constants
+
+| Name     | Type              | Description                                                    |
+| :------- | :---------------- | :------------------------------------------------------------- |
+| `info`   | `HookInformation` | Contains context about the current run (paths, flags).         |
+| `runner` | `Runner`          | A handle to the internal system runner for package management. |
+
+#### HookInformation
+
+**update**: bool - whether this is an update or a new installation of the dotfiles<br>
+**backup**: bool - whether backup is performed or not (backups are always performed if profile exists)<br>
+**install_dir**: ImmutableString - the directory where the profile is located (defaults to `~/.mydotfiles`)<br>
+**profile_dir**: ImmutableString - the profiles directory (`<install_dir>/<dotfiles-id>`)<br>
+**dotfiles_dir**: ImmutableString - the dotfiles directory defined within the `profile_dir`<br>
+
+### The `api` Module
+
+The core of your scripting power comes from the `api` module. It provides three main namespaces:
+
+- **`api::log`**: Functions for printing output to the terminal without disrupting the UI.
+- **`api::runner`**: High-level system operations like installing packages or cloning repositories.
+- **`api::utility`**: Helper functions for file I/O, JSON parsing, and user prompts.
+
+> [!NOTE]
+> View the full API reference for a detailed list of every available function.
+
+> [!TIP]
+> Find the definitions JSON file [here](api/defs.json).
+
+---
+
+## Quickstart & Best Practices
+
+### Communicating Between Hooks
+
+Because the script's **Scope** is preserved for the entire lifetime of the application, you can use global variables to share state between different hook functions.
+
+```rust
+// This runs during initialization
+let keyboard_layout = "";
+
+fn pre_backup() {
+  keyboard_layout = api::utility::select("Choose your keyboard layout", "de", [["us", "us", ""], ["de", "de", ""]]);
+}
+
+fn post_restore_pre_link() {
+  api::log::info(`You chose keyboard layout: ${keyboard_layout}`);
+}
+```
+
+### Accessing Context
+
+You can use the `info` object to make decisions based on the current environment:
+
+```rust
+fn post_deps_pre_install() {
+  api::log::info(`Installing to: ${info.install_dir}`);
+
+  if info.update {
+    api::log::remark("Update flag detected, skipping backup...");
+  } else if info.backup {
+    api::log::step("Performing pre-install backup...");
+  }
+}
+```

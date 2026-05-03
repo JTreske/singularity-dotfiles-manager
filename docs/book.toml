@@ -1,0 +1,8 @@
+[book]
+title = "Singularity Dotfiles Manager"
+authors = ["Johannes Treske"]
+language = "en"
+
+[output.html]
+additional-css = ["theme/default.css"]
+additional-js = ["theme/tabs.js"]
