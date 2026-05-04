@@ -219,7 +219,7 @@ impl Runner for Arch {
   fn is_installed(&self, package: &str) -> bool {
     let program = self.aur_helper.as_deref().unwrap_or("pacman");
 
-    let args = vec!["-Qs", package];
+    let args = vec!["-Qq", package];
 
     self
       .command_runner
