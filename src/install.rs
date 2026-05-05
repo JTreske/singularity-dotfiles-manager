@@ -47,19 +47,19 @@ fn check_versions(old_tag: &Option<String>, new_tag: &Option<String>) -> Result<
       let old_ver = semver::Version::parse(old_tag).ok();
 
       let log_msg = format!(
-        "Current version of the dotfiles `{old_tag}` is newer than the new version `{new_tag}`"
+        "Current version of the dotfiles `{old_tag}` is newer or equal than the new version `{new_tag}`"
       );
       let ui_msg = format!(
-        "A newer version '{old_tag}' of the dotfiles was previously installed. Do you want to continue with installing an older version '{new_tag}'?"
+        "A newer or equal version '{old_tag}' of the dotfiles was previously installed. Do you want to continue with installing an older version '{new_tag}'?"
       );
       if let (Some(new_v), Some(old_v)) = (new_ver, old_ver) {
-        if old_v > new_v {
+        if old_v >= new_v {
           tracing::warn!(log_msg);
           util::confirm(ui_msg, false)?;
         }
       } else {
         // Fallback: compare raw strings lexicographically.
-        if old_tag > new_tag {
+        if old_tag >= new_tag {
           tracing::warn!(log_msg);
           util::confirm(ui_msg, false)?;
         }
@@ -130,23 +130,17 @@ fn select_restore(config: &mut DotfilesReleaseConfig) -> Result<()> {
   Ok(())
 }
 
-fn restore(config: &DotfilesReleaseConfig, backup_path: &Path, profile_path: &Path) -> Result<()> {
+fn restore(config: &DotfilesReleaseConfig, backup_dir: &Path, profile_dir: &Path) -> Result<()> {
   util::log::step("Restoring selected items...");
 
-  for item in &config.restore {
-    if item.selected {
-      let backup_src = backup_path.join(&item.path);
-      let profile_target = profile_path.join(&item.path);
+  let selected_items: Vec<String> = config
+    .restore
+    .iter()
+    .filter(|item| item.selected)
+    .map(|item| item.path.clone())
+    .collect();
 
-      if backup_src.is_dir() {
-        let _ = fs::remove_dir_all(&profile_target);
-        util::path::copy_recursive(&backup_src, &profile_target)?;
-      } else {
-        let _ = fs::remove_file(&profile_target);
-        fs::copy(&backup_src, &profile_target)?;
-      }
-    }
-  }
+  util::backup::restore_from_backup(&selected_items, backup_dir, profile_dir)?;
 
   util::log::success("Restore complete!");
 
@@ -238,13 +232,13 @@ pub fn install(
     select_restore(&mut new_config)?;
   }
 
-  let mut backup_path = PathBuf::new();
+  let mut absolute_backup_dir = PathBuf::new();
   if state.backup {
-    backup_path = util::backup::compose_id_backups_path(&absolute_install_dir, &new_config.id);
-    let absolute_backup_dir =
+    let backup_path = util::backup::compose_id_backups_path(&absolute_install_dir, &new_config.id);
+    absolute_backup_dir =
       util::path::ensure_dir(util::backup::compose_backup_target_path(&backup_path, None))?;
 
-    util::backup_dotfiles(&absolute_profile_dir, absolute_backup_dir, &old_config_opt)?;
+    util::backup_dotfiles(&absolute_profile_dir, &absolute_backup_dir, &old_config_opt)?;
 
     let backups = util::backup::list_backups(&backup_path);
     if backups.len() > 3 {
@@ -294,7 +288,7 @@ pub fn install(
   }
 
   if state.update {
-    restore(&new_config, &backup_path, &absolute_profile_dir)?;
+    restore(&new_config, &absolute_backup_dir, &absolute_profile_dir)?;
   }
 
   if let Some(hooks) = &mut hooks_opt {

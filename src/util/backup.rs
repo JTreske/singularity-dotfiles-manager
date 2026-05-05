@@ -92,3 +92,27 @@ pub fn compose_backup_target_path(
     .as_ref()
     .join(date_time.format(DATE_TIME_BACKUP_FORMAT).to_string())
 }
+
+pub fn restore_from_backup(
+  restore_paths: &[impl AsRef<Path>],
+  backup_dir: impl AsRef<Path>,
+  profile_dir: impl AsRef<Path>,
+) -> Result<()> {
+  let backup_dir = backup_dir.as_ref().join(DOTFILES_SUB_DIR);
+  let profile_dir = profile_dir.as_ref();
+
+  for item in restore_paths {
+    let src = backup_dir.join(item);
+    let dst = profile_dir.join(item);
+
+    if src.is_dir() {
+      let _ = fs::remove_dir_all(&dst);
+      util::path::copy_recursive(&src, &dst)?;
+    } else {
+      let _ = fs::remove_file(&dst);
+      fs::copy(&src, &dst)?;
+    }
+  }
+
+  Ok(())
+}
