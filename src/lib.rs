@@ -5,4 +5,5 @@ pub mod cli;
 pub mod config;
 pub mod install;
 pub mod os;
+pub mod restore;
 pub mod util;

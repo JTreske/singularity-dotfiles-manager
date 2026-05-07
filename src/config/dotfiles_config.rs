@@ -94,7 +94,7 @@ pub struct DotfilesReleaseConfig {
 }
 
 impl DotfilesReleaseConfig {
-  pub fn present(&self, update: bool) {
+  pub fn present(&self, update: bool, restore: bool) {
     log::info(format!(
       "PROFILE INFORMATION\n\
        Status:        {}\n\
@@ -108,6 +108,8 @@ impl DotfilesReleaseConfig {
        Subfolder:     {}",
       if update {
         "Update of existing profile"
+      } else if restore {
+        "Restore profile"
       } else {
         "Install new profile"
       },

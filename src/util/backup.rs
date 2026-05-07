@@ -43,14 +43,14 @@ pub fn backup_dotfiles(
   Ok(())
 }
 
-pub fn list_backups(backup_path: impl AsRef<Path>) -> Vec<DateTime<Utc>> {
-  let backup_path = backup_path.as_ref();
+pub fn list_backups(backup_id_dir: impl AsRef<Path>) -> Vec<DateTime<Utc>> {
+  let backup_id_dir = backup_id_dir.as_ref();
 
-  if !backup_path.is_dir() {
+  if !backup_id_dir.is_dir() {
     return Vec::new();
   }
 
-  let targets = match fs::read_dir(backup_path) {
+  let targets = match fs::read_dir(backup_id_dir) {
     Ok(t) => t,
     Err(_) => return Vec::new(),
   };
@@ -65,6 +65,30 @@ pub fn list_backups(backup_path: impl AsRef<Path>) -> Vec<DateTime<Utc>> {
       )
     {
       backup_targets.push(timestamp.and_utc());
+    }
+  }
+
+  Vec::new()
+}
+
+pub fn list_backup_ids(backup_dir: impl AsRef<Path>) -> Vec<String> {
+  let backup_dir = backup_dir.as_ref();
+
+  if !backup_dir.is_dir() {
+    return Vec::new();
+  }
+
+  let targets = match fs::read_dir(backup_dir) {
+    Ok(t) => t,
+    Err(_) => return Vec::new(),
+  };
+
+  let mut backup_ids = Vec::new();
+  for target_res in targets {
+    if let Ok(target) = target_res
+      && target.path().is_dir()
+    {
+      backup_ids.push(target.file_name().to_string_lossy().to_string());
     }
   }
 
@@ -115,4 +139,14 @@ pub fn restore_from_backup(
   }
 
   Ok(())
+}
+
+/// Does not write the release config file.
+pub fn restore_all_from_backup(
+  backup_dir: impl AsRef<Path>,
+  profile_dir: impl AsRef<Path>,
+) -> Result<()> {
+  let backup_dir = backup_dir.as_ref().join(DOTFILES_SUB_DIR);
+
+  util::path::copy_recursive(backup_dir, profile_dir)
 }

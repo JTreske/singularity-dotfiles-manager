@@ -182,7 +182,7 @@ pub fn install(
     new_config = merge_config(old_config, &new_config);
   }
 
-  new_config.present(state.update);
+  new_config.present(state.update, false);
   let c = util::confirm("Do you wish to continue?", true)?;
   if !c {
     util::log::info("Aborting...");
@@ -277,7 +277,7 @@ pub fn install(
 
   // Install dotfiles in profile
   if state.backup {
-    fs::remove_dir_all(&absolute_profile_dir)?;
+    let _ = fs::remove_dir_all(&absolute_profile_dir);
     util::path::ensure_dir(&absolute_profile_dir)?;
   }
   util::path::copy_recursive(tmp_clone_dir.path(), &absolute_profile_dir)?;
@@ -296,7 +296,7 @@ pub fn install(
   }
 
   app_settings.active_config = Some(new_config);
-  app_settings.active_install_dir = install_dir.to_path_buf();
+  app_settings.active_install_dir = absolute_install_dir;
   util::symlink::create_active_symlinks(app_settings, &home_dir)?;
 
   if let Some(hooks) = &mut hooks_opt {
