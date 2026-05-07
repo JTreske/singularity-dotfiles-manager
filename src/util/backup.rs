@@ -68,7 +68,7 @@ pub fn list_backups(backup_id_dir: impl AsRef<Path>) -> Vec<DateTime<Utc>> {
     }
   }
 
-  Vec::new()
+  backup_targets
 }
 
 pub fn list_backup_ids(backup_dir: impl AsRef<Path>) -> Vec<String> {
@@ -92,7 +92,7 @@ pub fn list_backup_ids(backup_dir: impl AsRef<Path>) -> Vec<String> {
     }
   }
 
-  Vec::new()
+  backup_ids
 }
 
 /// Returns the `backups_path`.
