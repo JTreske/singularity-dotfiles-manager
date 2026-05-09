@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use std::fs;
 use std::path::{Path, PathBuf};
+use tracing::debug;
 
 const DOTFILES_SUB_DIR: &str = "dotfiles";
 const DATE_TIME_BACKUP_FORMAT: &str = "%Y%m%d%H%M%S";
@@ -126,9 +127,19 @@ pub fn restore_from_backup(
   let profile_dir = profile_dir.as_ref();
 
   for item in restore_paths {
+    util::log::info(format!("Restoring `{}`...", item.as_ref().display()));
     let src = backup_dir.join(item);
     let dst = profile_dir.join(item);
 
+    if !src.exists() {
+      util::log::warn(format!(
+        "Backup path `{}` does not exist! Cannot restore.",
+        src.display()
+      ));
+      continue;
+    }
+
+    debug!("Restore from `{}` to `{}`", src.display(), dst.display());
     if src.is_dir() {
       let _ = fs::remove_dir_all(&dst);
       util::path::copy_recursive(&src, &dst)?;

@@ -124,7 +124,7 @@ fn select_restore(config: &mut DotfilesReleaseConfig) -> Result<()> {
     .collect();
 
   for item in &mut config.restore {
-    item.selected = selection_map.contains_key(item.name.as_str());
+    item.selected = selection_map.contains_key(item.path.as_str());
   }
 
   Ok(())
@@ -239,19 +239,6 @@ pub fn install(
       util::path::ensure_dir(util::backup::compose_backup_target_path(&backup_path, None))?;
 
     util::backup_dotfiles(&absolute_profile_dir, &absolute_backup_dir, &old_config_opt)?;
-
-    let backups = util::backup::list_backups(&backup_path);
-    if backups.len() > 3 {
-      for backup in &backups[..backups.len() - 3] {
-        let target_path = util::backup::compose_backup_target_path(&backup_path, Some(*backup));
-        if fs::remove_dir_all(&target_path).is_err() {
-          util::log::error(format!(
-            "Failed to delete backup `{}`",
-            target_path.display()
-          ));
-        };
-      }
-    }
   }
 
   if let Some(hooks) = &mut hooks_opt {

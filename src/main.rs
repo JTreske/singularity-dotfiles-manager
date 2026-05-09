@@ -26,6 +26,13 @@ fn main() {
 
   let mut app_settings = config::AppSettings::from_filesystem();
 
+  if !cli.global.no_profile_sync
+    && let Err(e) = util::symlink::sync_active_profile(&app_settings)
+  {
+    util::log::error(e.to_string());
+    std::process::exit(1);
+  }
+
   let mut fail = false;
   if let Err(e) = cli.command.run(&mut app_settings) {
     util::log::error(e.to_string());

@@ -3,6 +3,7 @@ use crate::util;
 use anyhow::{Context, Result, anyhow};
 use std::fs;
 use std::path::Path;
+use tracing::debug;
 
 fn backup_existing_file(file_path: impl AsRef<Path>) -> Result<()> {
   let file_path = file_path.as_ref();
@@ -151,4 +152,70 @@ pub fn create_active_symlinks(
   };
 
   create_symlinks(active_profile_dir, symlink_root)
+}
+
+pub fn sync_active_profile(app_settings: &AppSettings) -> Result<()> {
+  let active_config = match &app_settings.active_config {
+    Some(active_config) => active_config,
+    None => {
+      debug!("Aborting active profile sync: No active config set");
+      return Ok(());
+    }
+  };
+
+  util::log::step("Syncing active profile...");
+
+  let profile_dir = app_settings.active_install_dir.join(&active_config.id);
+  let dotfiles_dir = profile_dir.join(&active_config.dotfiles);
+  let home_dir = dirs::home_dir().with_context(|| "Failed to resolve $HOME")?;
+
+  for entry in walkdir::WalkDir::new(&dotfiles_dir)
+    .into_iter()
+    .filter_map(|e| e.ok())
+  {
+    if entry.file_type().is_dir() {
+      continue;
+    }
+
+    let relative = entry.path().strip_prefix(&dotfiles_dir).with_context(|| {
+      format!(
+        "Failed to create relative path for `{}`",
+        entry.path().display()
+      )
+    })?;
+    let target_path = home_dir.join(relative);
+
+    if target_path.is_symlink()
+      && let Ok(link) = target_path.canonicalize()
+      && let Ok(orig) = entry.path().canonicalize()
+      && orig == link
+    {
+      // skip syncing for this file since it already points to the correct location
+      continue;
+    }
+
+    util::log::info(format!("Syncing `{}`...", target_path.display()));
+    if target_path.is_file() {
+      std::fs::copy(&target_path, entry.path()).with_context(|| {
+        format!(
+          "Failed to copy `{}` to `{}`",
+          target_path.display(),
+          entry.path().display()
+        )
+      })?;
+      std::fs::remove_file(&target_path)
+        .with_context(|| format!("Failed to remove `{}`", target_path.display()))?;
+
+      create_symlink(entry.path(), target_path)?;
+    } else {
+      util::log::warn(format!(
+        "Unexpected file type for `{}`",
+        target_path.display()
+      ));
+    }
+  }
+
+  util::log::success("Active profile synced!");
+
+  Ok(())
 }
