@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-const APP_SETTINGS_PATH: &str = "~/.local/share/singularity-dotfiles-manager";
+const APP_SETTINGS_PATH: &str = "~/.local/share/singularity-dotfiles-manager/settings.json";
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AppSettings {

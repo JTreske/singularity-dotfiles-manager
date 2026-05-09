@@ -44,6 +44,10 @@ pub fn write_str_to_file(
   path: impl AsRef<Path>,
   append: bool,
 ) -> Result<()> {
+  if !append && path.as_ref().is_file() {
+    fs::remove_file(&path)?;
+  }
+
   let mut file = fs::OpenOptions::new()
     .write(true)
     .append(append)
