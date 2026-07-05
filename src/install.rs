@@ -40,8 +40,8 @@ fn probe_old_config(
   }
 }
 
-fn check_versions(old_tag: &Option<String>, new_tag: &Option<String>) -> Result<()> {
-  match (new_tag, old_tag) {
+fn check_versions(old_tag: &Option<String>, new_tag: &Option<String>) -> Result<bool> {
+  let confirm = match (new_tag, old_tag) {
     (Some(new_tag), Some(old_tag)) => {
       let new_ver = semver::Version::parse(new_tag).ok();
       let old_ver = semver::Version::parse(old_tag).ok();
@@ -55,13 +55,17 @@ fn check_versions(old_tag: &Option<String>, new_tag: &Option<String>) -> Result<
       if let (Some(new_v), Some(old_v)) = (new_ver, old_ver) {
         if old_v >= new_v {
           tracing::warn!(log_msg);
-          util::confirm(ui_msg, false)?;
+          util::confirm(ui_msg, false)?
+        } else {
+          true
         }
       } else {
         // Fallback: compare raw strings lexicographically.
         if old_tag >= new_tag {
           tracing::warn!(log_msg);
-          util::confirm(ui_msg, false)?;
+          util::confirm(ui_msg, false)?
+        } else {
+          true
         }
       }
     }
@@ -74,12 +78,12 @@ fn check_versions(old_tag: &Option<String>, new_tag: &Option<String>) -> Result<
           "Version information was found for the previous installation of the dotfiles ({old_tag}) but not for this release. Do you want to continue installing unversioned dotfiles?"
         ),
         false,
-      )?;
+      )?
     }
-    _ => {}
-  }
+    _ => true,
+  };
 
-  Ok(())
+  Ok(confirm)
 }
 
 pub fn merge_config(
@@ -178,7 +182,10 @@ pub fn install(
   if state.update
     && let Some(old_config) = &old_config_opt
   {
-    check_versions(&old_config.tag, &new_config.tag)?;
+    if !check_versions(&old_config.tag, &new_config.tag)? {
+      util::log::info("Aborting...");
+      return Ok(());
+    }
     new_config = merge_config(old_config, &new_config);
   }
 
