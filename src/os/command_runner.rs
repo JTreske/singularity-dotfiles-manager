@@ -2,7 +2,7 @@ use crate::os::Permissions;
 use crate::util::{self, log};
 use anyhow::{Context, Result, anyhow};
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use tracing::debug;
@@ -101,18 +101,51 @@ impl CommandRunner {
 
     command.args(args);
 
-    if !interactive {
+    let spinner_opt = if !interactive {
       command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    }
+
+      let spinner = cliclack::spinner();
+      spinner.start(format!("Running `{command_string}`..."));
+      Some(spinner)
+    } else {
+      None
+    };
 
     let mut child = command.spawn()?;
 
+    let mut last_line = String::new();
+    if let (Some(stdout), Some(spinner)) = (child.stdout.take(), &spinner_opt) {
+      let reader = BufReader::new(stdout);
+      for line_result in reader.lines() {
+        match line_result {
+          Ok(line) => {
+            let clean_text = line.trim();
+            if !clean_text.is_empty() {
+              spinner.set_message(format!("{:.60}", clean_text));
+              last_line = clean_text.to_string();
+            }
+          }
+          Err(err) => {
+            log::warn(format!("Failed to read line: {err}"));
+          }
+        }
+      }
+    }
+
     let status = child.wait()?;
+
     if !status.success() {
+      if let Some(spinner) = &spinner_opt {
+        spinner.error(last_line);
+      }
       return Err(anyhow!("Command `{command_string}` failed: {status}"));
+    }
+
+    if let Some(spinner) = &spinner_opt {
+      spinner.stop("Command completed!");
     }
 
     Ok(())
